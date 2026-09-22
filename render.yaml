@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: calculator-backend
+    runtime: python
+    plan: starter
+    buildCommand: python --version
+    startCommand: python -m app.server
+    healthCheckPath: /api/health
+    disk:
+      name: calculator-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.2
+      - key: DATABASE_PATH
+        value: /var/data/calculator.db
+      - key: ALLOWED_ORIGINS
+        value: https://YOUR_GITHUB_USERNAME.github.io
