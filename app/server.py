@@ -4,6 +4,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import logging
 import os
+import sys
 from typing import Any
 
 from app.config import settings
@@ -33,6 +34,16 @@ class CalculatorHTTPServer(ThreadingHTTPServer):
         if origin is None:
             return False
         return "*" in self.allowed_origins or origin in self.allowed_origins
+
+    def handle_error(
+        self,
+        request: object,
+        client_address: tuple[str, int],
+    ) -> None:
+        error = sys.exc_info()[1]
+        if isinstance(error, (BrokenPipeError, ConnectionResetError)):
+            return
+        super().handle_error(request, client_address)
 
 
 class CalculatorRequestHandler(BaseHTTPRequestHandler):
