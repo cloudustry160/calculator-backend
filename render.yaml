@@ -16,4 +16,4 @@ services:
       - key: DATABASE_PATH
         value: /var/data/calculator.db
       - key: ALLOWED_ORIGINS
-        value: https://YOUR_GITHUB_USERNAME.github.io
+        value: https://cloudustry160.github.io
