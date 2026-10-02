@@ -4,6 +4,7 @@ import json
 import tempfile
 import threading
 import unittest
+from urllib.parse import quote
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -109,7 +110,7 @@ class ApiTests(unittest.TestCase):
 
         self.assertEqual(status, 400)
         self.assertEqual(body["code"], "DIVISION_BY_ZERO")
-        self.assertEqual(self.database.list_history(), [])
+        self.assertEqual(self.database.list_history()["records"], [])
 
     def test_delete_specific_history(self) -> None:
         _status, first, _headers = self.request(
@@ -160,6 +161,98 @@ class ApiTests(unittest.TestCase):
             [item["id"] for item in history["data"]],
             [second["data"]["id"], first["data"]["id"]],
         )
+
+    def test_history_search_and_pagination(self) -> None:
+        for index in range(12):
+            self.request(
+                "POST",
+                "/api/calculations",
+                {"expression": f"{index}+1"},
+            )
+
+        status, body, _headers = self.request(
+            "GET",
+            "/api/history?page=2&pageSize=5",
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(len(body["data"]), 5)
+        self.assertEqual(
+            body["pagination"],
+            {
+                "page": 2,
+                "pageSize": 5,
+                "total": 12,
+                "totalPages": 3,
+            },
+        )
+
+        search_status, search_body, _headers = self.request(
+            "GET",
+            f"/api/history?q={quote('3+1')}",
+        )
+        self.assertEqual(search_status, 200)
+        self.assertEqual(search_body["data"][0]["expression"], "3+1")
+
+    def test_base_conversion_is_stored(self) -> None:
+        status, body, _headers = self.request(
+            "POST",
+            "/api/conversions/base",
+            {"value": "FF", "fromBase": 16, "toBase": 10},
+        )
+
+        self.assertEqual(status, 201)
+        self.assertEqual(body["data"]["result"], "255")
+        self.assertEqual(body["data"]["kind"], "base")
+
+        _status, history, _headers = self.request("GET", "/api/history")
+        self.assertEqual(history["data"][0]["expression"], "FF base 16 -> base 10")
+
+    def test_unit_conversion_is_stored(self) -> None:
+        status, body, _headers = self.request(
+            "POST",
+            "/api/conversions/units",
+            {
+                "value": "100",
+                "category": "length",
+                "fromUnit": "cm",
+                "toUnit": "m",
+            },
+        )
+
+        self.assertEqual(status, 201)
+        self.assertEqual(body["data"]["result"], "1")
+        self.assertEqual(body["data"]["kind"], "unit")
+
+    def test_favorite_can_be_toggled_and_filtered(self) -> None:
+        _status, calculation, _headers = self.request(
+            "POST",
+            "/api/calculations",
+            {"expression": "7+8"},
+        )
+
+        favorite_status, favorite_body, _headers = self.request(
+            "PATCH",
+            f"/api/history/{calculation['data']['id']}/favorite",
+            {"favorite": True},
+        )
+        self.assertEqual(favorite_status, 200)
+        self.assertTrue(favorite_body["data"]["isFavorite"])
+
+        _status, favorite_history, _headers = self.request(
+            "GET",
+            "/api/history?favorite=true",
+        )
+        self.assertEqual(len(favorite_history["data"]), 1)
+        self.assertEqual(favorite_history["data"][0]["id"], calculation["data"]["id"])
+
+        removed_status, removed_body, _headers = self.request(
+            "PATCH",
+            f"/api/history/{calculation['data']['id']}/favorite",
+            {"favorite": False},
+        )
+        self.assertEqual(removed_status, 200)
+        self.assertFalse(removed_body["data"]["isFavorite"])
 
     def test_cors_allows_local_frontend(self) -> None:
         request = Request(

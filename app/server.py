@@ -59,6 +59,9 @@ class CalculatorRequestHandler(BaseHTTPRequestHandler):
     def do_DELETE(self) -> None:
         self._handle_request("DELETE")
 
+    def do_PATCH(self) -> None:
+        self._handle_request("PATCH")
+
     def do_OPTIONS(self) -> None:
         origin = self.headers.get("Origin")
         if not self.server.is_origin_allowed(origin):
@@ -75,7 +78,9 @@ class CalculatorRequestHandler(BaseHTTPRequestHandler):
                 status=204,
                 body=None,
                 headers={
-                    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+                    "Access-Control-Allow-Methods": (
+                        "GET, POST, PATCH, DELETE, OPTIONS"
+                    ),
                     "Access-Control-Allow-Headers": "Content-Type",
                     "Access-Control-Max-Age": "86400",
                 },

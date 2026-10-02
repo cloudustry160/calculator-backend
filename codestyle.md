@@ -1,20 +1,51 @@
-# 后端代码规范
+# Backend Code Style
 
-## 规范来源
+## Standard Sources
 
-本规范参考 [PEP 8](https://peps.python.org/pep-0008/) 与
-[Google Python Style Guide](https://google.github.io/styleguide/pyguide.html)。
-项目不依赖第三方代码检查工具，提交前使用标准库测试和人工检查。
+This document follows [PEP 8](https://peps.python.org/pep-0008/) and the
+[Google Python Style Guide](https://google.github.io/styleguide/pyguide.html).
 
-## 基本规则
+## General Rules
 
-- 使用 4 个空格缩进，禁止使用 Tab。
-- 单行代码长度不超过 88 个字符。
-- 模块、函数和变量使用 `snake_case`，类名使用 `PascalCase`。
-- 导入按标准库、项目模块分组，组与组之间保留一个空行。
-- 公共函数和复杂逻辑必须写明类型标注。
-- 接口响应统一使用 `ApiResponse` 构造，保持状态码、响应体和响应头结构一致。
-- 数据库记录和历史记录等结构化数据使用 `dataclass` 或明确的字典结构，字段命名保持稳定。
-- 数据库操作统一通过 `Database` 类执行，每个请求使用独立 SQLite 连接。
-- 禁止使用 `eval`、`exec` 或类似方式执行用户输入。
-- 提交前运行 `python -m unittest discover -s tests -v`。
+- Use four spaces per indentation level.
+- Do not use tab characters.
+- Keep each line at or below 88 characters where practical.
+- Use `snake_case` for modules, functions, and variables.
+- Use `PascalCase` for classes.
+- Group imports in this order: standard library, then application modules.
+- Add type annotations to public functions and complex logic.
+- Keep user-facing error messages in one place for each API module.
+
+## API and Data
+
+- Build responses through `ApiResponse`.
+- Keep response fields stable: `success`, `data`, `pagination`, and `message`.
+- Use `dataclass` or explicit dictionaries for structured records.
+- Validate request types before parsing values.
+- Return an appropriate HTTP status code for success and failure.
+
+## Database Rules
+
+- Perform all database operations through the `Database` class.
+- Use parameterized SQL statements.
+- Open a separate SQLite connection for each operation.
+- Keep schema migration logic idempotent.
+- Never construct SQL with user input.
+
+## Security Rules
+
+- Do not use `eval`, `exec`, or equivalent arbitrary-code execution.
+- Parse expressions with the project parser.
+- Validate conversion bases, units, lengths, and numeric ranges.
+- Do not trust values received from the front end.
+
+## Testing
+
+Run the full test suite before committing:
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
+Add tests for new API behavior, validation failures, database migrations, and
+persistence behavior.
