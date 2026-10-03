@@ -65,7 +65,7 @@ class CalculatorRequestHandler(BaseHTTPRequestHandler):
             self._send_response(
                 ApiResponse(
                     status=403,
-                    body={"success": False, "message": "跨域来源不允许"},
+                    body={"success": False, "message": "Origin is not allowed"},
                 )
             )
             return
@@ -91,14 +91,14 @@ class CalculatorRequestHandler(BaseHTTPRequestHandler):
             try:
                 body_length = int(content_length)
             except ValueError:
-                self._send_response(self._bad_request("Content-Length 不正确"))
+                self._send_response(self._bad_request("Invalid Content-Length"))
                 return
 
             if body_length > MAX_REQUEST_BODY:
                 self._send_response(
                     ApiResponse(
                         status=413,
-                        body={"success": False, "message": "请求内容过大"},
+                        body={"success": False, "message": "Request body is too large"},
                     )
                 )
                 return
@@ -108,11 +108,17 @@ class CalculatorRequestHandler(BaseHTTPRequestHandler):
                 try:
                     parsed_body: Any = json.loads(raw_body.decode("utf-8"))
                 except (UnicodeDecodeError, json.JSONDecodeError):
-                    self._send_response(self._bad_request("请求体必须是有效 JSON"))
+                    self._send_response(
+                        self._bad_request("Request body must be valid JSON")
+                    )
                     return
 
                 if not isinstance(parsed_body, dict):
-                    self._send_response(self._bad_request("请求体必须是 JSON 对象"))
+                    self._send_response(
+                        self._bad_request(
+                            "Request body must be a JSON object"
+                        )
+                    )
                     return
                 body = parsed_body
 

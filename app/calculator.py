@@ -64,17 +64,17 @@ def _tokenize(expression: str) -> list[Token]:
                 break
 
             if digit_count == 0:
-                raise CalculationError("小数格式不正确")
+                raise CalculationError("Invalid decimal format")
             if digit_count > MAX_NUMBER_DIGITS:
-                raise CalculationError("单个数字不能超过 30 位")
+                raise CalculationError("A number cannot exceed 30 digits")
 
             tokens.append(Token("number", expression[start:index]))
             continue
 
-        raise CalculationError(f"不支持的字符：{character}")
+        raise CalculationError(f"Unsupported character: {character}")
 
     if not tokens:
-        raise CalculationError("表达式不能为空")
+        raise CalculationError("Expression cannot be empty")
 
     return tokens
 
@@ -89,7 +89,7 @@ class ExpressionParser:
 
         if self._current() is not None:
             token = self._current()
-            raise CalculationError(f"存在多余内容：{token.value}")
+            raise CalculationError(f"Unexpected content: {token.value}")
 
         return value
 
@@ -101,7 +101,7 @@ class ExpressionParser:
     def _advance(self) -> Token:
         token = self._current()
         if token is None:
-            raise CalculationError("表达式不完整")
+            raise CalculationError("Incomplete expression")
         self.position += 1
         return token
 
@@ -132,7 +132,10 @@ class ExpressionParser:
             elif self._match("/"):
                 divisor = self._parse_unary()
                 if divisor == 0:
-                    raise CalculationError("不能除以零", "DIVISION_BY_ZERO")
+                    raise CalculationError(
+                        "Division by zero is not allowed",
+                        "DIVISION_BY_ZERO",
+                    )
                 value /= divisor
             else:
                 return value
@@ -148,38 +151,41 @@ class ExpressionParser:
         token = self._current()
 
         if token is None:
-            raise CalculationError("表达式不完整")
+            raise CalculationError("Incomplete expression")
 
         if token.kind == "number":
             self._advance()
             try:
                 return Decimal(token.value)
             except InvalidOperation as error:
-                raise CalculationError("数字格式不正确") from error
+                raise CalculationError("Invalid number format") from error
 
         if self._match("("):
             value = self._parse_expression()
             if not self._match(")"):
-                raise CalculationError("括号不匹配")
+                raise CalculationError("Mismatched parentheses")
             return value
 
         if token.kind == ")":
-            raise CalculationError("括号位置不正确")
+            raise CalculationError("Invalid parenthesis position")
 
-        raise CalculationError(f"操作符位置不正确：{token.value}")
+        raise CalculationError(f"Invalid operator position: {token.value}")
 
 
 def calculate_expression(expression: str) -> Decimal:
     normalized_expression = expression.strip()
 
     if len(normalized_expression) > MAX_EXPRESSION_LENGTH:
-        raise CalculationError("表达式不能超过 200 个字符", "EXPRESSION_TOO_LONG")
+        raise CalculationError(
+            "Expression cannot exceed 200 characters",
+            "EXPRESSION_TOO_LONG",
+        )
     if not normalized_expression:
-        raise CalculationError("表达式不能为空")
+        raise CalculationError("Expression cannot be empty")
 
     compact_expression = "".join(normalized_expression.split())
     if "++" in compact_expression or "--" in compact_expression:
-        raise CalculationError("不支持连续的正负号")
+        raise CalculationError("Consecutive signs are not supported")
 
     tokens = _tokenize(normalized_expression)
 
@@ -189,13 +195,13 @@ def calculate_expression(expression: str) -> Decimal:
             result = ExpressionParser(tokens).parse()
 
             if not result.is_finite():
-                raise CalculationError("计算结果不是有效数字")
+                raise CalculationError("Result is not a valid number")
             if abs(result) > MAX_ABSOLUTE_RESULT:
-                raise CalculationError("计算结果超出支持范围")
+                raise CalculationError("Result is outside the supported range")
     except CalculationError:
         raise
     except (DecimalException, OverflowError) as error:
-        raise CalculationError("无法计算该表达式") from error
+        raise CalculationError("Unable to evaluate the expression") from error
 
     if result == 0:
         return Decimal("0")

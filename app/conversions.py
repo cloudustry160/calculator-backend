@@ -26,7 +26,7 @@ class ConversionResult:
 
 def _validate_base(base: int) -> None:
     if isinstance(base, bool) or base not in SUPPORTED_BASES:
-        raise ConversionError("仅支持 2、8、10 和 16 进制")
+        raise ConversionError("Only bases 2, 8, 10, and 16 are supported")
 
 
 def convert_base(value: str, from_base: int, to_base: int) -> ConversionResult:
@@ -35,9 +35,9 @@ def convert_base(value: str, from_base: int, to_base: int) -> ConversionResult:
 
     normalized = value.strip().upper()
     if not normalized:
-        raise ConversionError("请输入要转换的数值")
+        raise ConversionError("Enter a value to convert")
     if len(normalized) > MAX_INPUT_LENGTH:
-        raise ConversionError("输入数值过长")
+        raise ConversionError("Input is too long")
 
     sign = ""
     if normalized[0] in "+-":
@@ -45,12 +45,12 @@ def convert_base(value: str, from_base: int, to_base: int) -> ConversionResult:
         normalized = normalized[1:]
 
     if not normalized:
-        raise ConversionError("数值格式不正确")
+        raise ConversionError("Invalid number format")
 
     digits = "0123456789ABCDEF"
     valid_digits = set(digits[:from_base])
     if any(character not in valid_digits for character in normalized):
-        raise ConversionError(f"输入值不是有效的 {from_base} 进制数字")
+        raise ConversionError(f"Input is not valid for base {from_base}")
 
     number = int(f"{sign}{normalized}", from_base)
     if number == 0:

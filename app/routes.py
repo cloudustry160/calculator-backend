@@ -81,14 +81,14 @@ class ApiRouter:
 
         return ApiResponse(
             status=404,
-            body={"success": False, "message": "接口不存在"},
+            body={"success": False, "message": "Endpoint not found"},
         )
 
     def _health(self) -> ApiResponse:
         if not self.database.health_check():
             return ApiResponse(
                 status=500,
-                body={"success": False, "message": "数据库不可用"},
+                body={"success": False, "message": "Database is unavailable"},
             )
         return ApiResponse(
             status=200,
@@ -97,7 +97,7 @@ class ApiRouter:
 
     def _create_calculation(self, body: dict | None) -> ApiResponse:
         if not isinstance(body, dict) or not isinstance(body.get("expression"), str):
-            return self._bad_request("请求必须包含 expression 字符串")
+            return self._bad_request("Request must contain an expression string")
 
         expression = body["expression"].strip()
         try:
@@ -110,17 +110,17 @@ class ApiRouter:
 
     def _create_base_conversion(self, body: dict | None) -> ApiResponse:
         if not isinstance(body, dict):
-            return self._bad_request("请求体必须是 JSON 对象")
+            return self._bad_request("Request body must be a JSON object")
 
         value = body.get("value")
         from_base = body.get("fromBase")
         to_base = body.get("toBase")
         if not isinstance(value, str):
-            return self._bad_request("请求必须包含 value 字符串")
+            return self._bad_request("Request must contain a value string")
         if isinstance(from_base, bool) or not isinstance(from_base, int):
-            return self._bad_request("fromBase 必须是整数")
+            return self._bad_request("fromBase must be an integer")
         if isinstance(to_base, bool) or not isinstance(to_base, int):
-            return self._bad_request("toBase 必须是整数")
+            return self._bad_request("toBase must be an integer")
 
         try:
             conversion = convert_base(value, from_base, to_base)
@@ -143,7 +143,7 @@ class ApiRouter:
             default=10,
         )
         if page is None or page_size is None:
-            return self._bad_request("page 和 pageSize 必须是正整数")
+            return self._bad_request("page and pageSize must be positive integers")
 
         history = self.database.list_history(
             page=page,
@@ -234,13 +234,13 @@ class ApiRouter:
     def _not_found() -> ApiResponse:
         return ApiResponse(
             status=404,
-            body={"success": False, "message": "历史记录不存在"},
+            body={"success": False, "message": "History record not found"},
         )
 
     @staticmethod
     def _method_not_allowed(allowed_method: str) -> ApiResponse:
         return ApiResponse(
             status=405,
-            body={"success": False, "message": "请求方法不允许"},
+            body={"success": False, "message": "Method not allowed"},
             headers={"Allow": allowed_method},
         )
