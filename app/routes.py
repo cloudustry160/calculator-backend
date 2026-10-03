@@ -76,7 +76,7 @@ class ApiRouter:
         if path.startswith(history_prefix):
             if method != "DELETE":
                 return self._method_not_allowed("DELETE")
-            raw_record_id = unquote(path.removeprefix(history_prefix))
+            raw_record_id = unquote(path[len(history_prefix) :])
             return self._delete_history(raw_record_id)
 
         return ApiResponse(
