@@ -208,52 +208,6 @@ class ApiTests(unittest.TestCase):
         _status, history, _headers = self.request("GET", "/api/history")
         self.assertEqual(history["data"][0]["expression"], "FF base 16 -> base 10")
 
-    def test_unit_conversion_is_stored(self) -> None:
-        status, body, _headers = self.request(
-            "POST",
-            "/api/conversions/units",
-            {
-                "value": "100",
-                "category": "length",
-                "fromUnit": "cm",
-                "toUnit": "m",
-            },
-        )
-
-        self.assertEqual(status, 201)
-        self.assertEqual(body["data"]["result"], "1")
-        self.assertEqual(body["data"]["kind"], "unit")
-
-    def test_favorite_can_be_toggled_and_filtered(self) -> None:
-        _status, calculation, _headers = self.request(
-            "POST",
-            "/api/calculations",
-            {"expression": "7+8"},
-        )
-
-        favorite_status, favorite_body, _headers = self.request(
-            "PATCH",
-            f"/api/history/{calculation['data']['id']}/favorite",
-            {"favorite": True},
-        )
-        self.assertEqual(favorite_status, 200)
-        self.assertTrue(favorite_body["data"]["isFavorite"])
-
-        _status, favorite_history, _headers = self.request(
-            "GET",
-            "/api/history?favorite=true",
-        )
-        self.assertEqual(len(favorite_history["data"]), 1)
-        self.assertEqual(favorite_history["data"][0]["id"], calculation["data"]["id"])
-
-        removed_status, removed_body, _headers = self.request(
-            "PATCH",
-            f"/api/history/{calculation['data']['id']}/favorite",
-            {"favorite": False},
-        )
-        self.assertEqual(removed_status, 200)
-        self.assertFalse(removed_body["data"]["isFavorite"])
-
     def test_cors_allows_local_frontend(self) -> None:
         request = Request(
             f"{self.base_url}/api/calculations",

@@ -24,7 +24,6 @@ class DatabaseTests(unittest.TestCase):
             self.assertEqual(records[0]["expression"], "1+2")
             self.assertEqual(records[0]["result"], "3")
             self.assertEqual(records[0]["kind"], "calculation")
-            self.assertFalse(records[0]["is_favorite"])
 
     def test_initialize_migrates_existing_history_table(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -58,7 +57,6 @@ class DatabaseTests(unittest.TestCase):
             record = database.list_history()["records"][0]
 
             self.assertEqual(record["kind"], "calculation")
-            self.assertFalse(record["is_favorite"])
 
 
 if __name__ == "__main__":

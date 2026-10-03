@@ -14,7 +14,6 @@ CREATE TABLE IF NOT EXISTS calculation_history (
     expression TEXT NOT NULL,
     result TEXT NOT NULL,
     kind TEXT NOT NULL DEFAULT 'calculation',
-    is_favorite INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL
 );
 
@@ -56,18 +55,6 @@ class Database:
                 "kind",
                 "TEXT NOT NULL DEFAULT 'calculation'",
             )
-            self._ensure_column(
-                connection,
-                "is_favorite",
-                "INTEGER NOT NULL DEFAULT 0",
-            )
-            connection.execute(
-                """
-                CREATE INDEX IF NOT EXISTS
-                ix_calculation_history_favorite_created_at
-                ON calculation_history (is_favorite DESC, created_at DESC)
-                """
-            )
 
     @staticmethod
     def _ensure_column(
@@ -108,10 +95,9 @@ class Database:
                     expression,
                     result,
                     kind,
-                    is_favorite,
                     created_at
                 )
-                VALUES (?, ?, ?, 0, ?)
+                VALUES (?, ?, ?, ?)
                 """,
                 (expression, result_text, kind, created_at),
             )
@@ -123,7 +109,6 @@ class Database:
                 "expression": expression,
                 "result": result_text,
                 "kind": kind,
-                "is_favorite": 0,
                 "created_at": created_at,
             }
         )
@@ -135,7 +120,6 @@ class Database:
             "expression": row["expression"],
             "result": row["result"],
             "kind": row["kind"],
-            "is_favorite": bool(row["is_favorite"]),
             "created_at": row["created_at"],
         }
 
@@ -144,7 +128,6 @@ class Database:
         page: int = 1,
         page_size: int = 10,
         query: str = "",
-        favorite_only: bool = False,
     ) -> dict:
         normalized_query = query.strip()
         conditions: list[str] = []
@@ -160,9 +143,6 @@ class Database:
                 "(expression LIKE ? ESCAPE '\\' OR result LIKE ? ESCAPE '\\')"
             )
             parameters.extend((f"%{escaped_query}%", f"%{escaped_query}%"))
-
-        if favorite_only:
-            conditions.append("is_favorite = 1")
 
         where_clause = ""
         if conditions:
@@ -183,7 +163,6 @@ class Database:
                     expression,
                     result,
                     kind,
-                    is_favorite,
                     created_at
                 FROM calculation_history
                 {where_clause}
@@ -211,7 +190,6 @@ class Database:
                     expression,
                     result,
                     kind,
-                    is_favorite,
                     created_at
                 FROM calculation_history
                 WHERE id = ?
@@ -220,36 +198,6 @@ class Database:
             ).fetchone()
 
         return self._row_to_record(row) if row is not None else None
-
-    def set_favorite(self, record_id: int, favorite: bool) -> dict | None:
-        with self._connect() as connection:
-            cursor = connection.execute(
-                """
-                UPDATE calculation_history
-                SET is_favorite = ?
-                WHERE id = ?
-                """,
-                (1 if favorite else 0, record_id),
-            )
-            if cursor.rowcount == 0:
-                return None
-
-            row = connection.execute(
-                """
-                SELECT
-                    id,
-                    expression,
-                    result,
-                    kind,
-                    is_favorite,
-                    created_at
-                FROM calculation_history
-                WHERE id = ?
-                """,
-                (record_id,),
-            ).fetchone()
-
-        return self._row_to_record(row)
 
     def delete_history(self, record_id: int) -> bool:
         with self._connect() as connection:

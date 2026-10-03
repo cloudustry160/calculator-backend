@@ -36,7 +36,7 @@ This document follows [PEP 8](https://peps.python.org/pep-0008/) and the
 
 - Do not use `eval`, `exec`, or equivalent arbitrary-code execution.
 - Parse expressions with the project parser.
-- Validate conversion bases, units, lengths, and numeric ranges.
+- Validate conversion bases, input lengths, digits, and numeric ranges.
 - Do not trust values received from the front end.
 
 ## Testing

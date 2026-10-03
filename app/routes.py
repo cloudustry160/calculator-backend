@@ -5,7 +5,7 @@ from decimal import Decimal
 from urllib.parse import parse_qs, unquote, urlsplit
 
 from app.calculator import CalculationError, calculate_expression
-from app.conversions import ConversionError, convert_base, convert_unit
+from app.conversions import ConversionError, convert_base
 from app.database import Database
 
 
@@ -27,7 +27,7 @@ def serialize_history_item(record: dict) -> dict:
     if record["kind"] == "calculation":
         try:
             result = decimal_to_number(Decimal(record["result"]))
-        except Exception:
+        except ArithmeticError:
             result = record["result"]
 
     return {
@@ -35,7 +35,6 @@ def serialize_history_item(record: dict) -> dict:
         "expression": record["expression"],
         "result": result,
         "kind": record["kind"],
-        "isFavorite": record["is_favorite"],
         "createdAt": record["created_at"],
     }
 
@@ -68,11 +67,6 @@ class ApiRouter:
                 return self._method_not_allowed("POST")
             return self._create_base_conversion(body)
 
-        if path == "/api/conversions/units":
-            if method != "POST":
-                return self._method_not_allowed("POST")
-            return self._create_unit_conversion(body)
-
         if path == "/api/history":
             if method != "GET":
                 return self._method_not_allowed("GET")
@@ -80,17 +74,10 @@ class ApiRouter:
 
         history_prefix = "/api/history/"
         if path.startswith(history_prefix):
-            relative_path = unquote(path.removeprefix(history_prefix))
-
-            if relative_path.endswith("/favorite"):
-                if method != "PATCH":
-                    return self._method_not_allowed("PATCH")
-                raw_record_id = relative_path.removesuffix("/favorite")
-                return self._update_favorite(raw_record_id, body)
-
             if method != "DELETE":
                 return self._method_not_allowed("DELETE")
-            return self._delete_history(relative_path)
+            raw_record_id = unquote(path.removeprefix(history_prefix))
+            return self._delete_history(raw_record_id)
 
         return ApiResponse(
             status=404,
@@ -110,32 +97,16 @@ class ApiRouter:
 
     def _create_calculation(self, body: dict | None) -> ApiResponse:
         if not isinstance(body, dict) or not isinstance(body.get("expression"), str):
-            return ApiResponse(
-                status=400,
-                body={"success": False, "message": "请求必须包含 expression 字符串"},
-            )
+            return self._bad_request("请求必须包含 expression 字符串")
 
         expression = body["expression"].strip()
         try:
             result = calculate_expression(expression)
         except CalculationError as error:
-            return ApiResponse(
-                status=400,
-                body={
-                    "success": False,
-                    "code": error.code,
-                    "message": error.message,
-                },
-            )
+            return self._calculation_error(error)
 
         record = self.database.create_history(expression, result)
-        return ApiResponse(
-            status=201,
-            body={
-                "success": True,
-                "data": serialize_history_item(record),
-            },
-        )
+        return self._created(record)
 
     def _create_base_conversion(self, body: dict | None) -> ApiResponse:
         if not isinstance(body, dict):
@@ -163,40 +134,6 @@ class ApiRouter:
         )
         return self._created(record)
 
-    def _create_unit_conversion(self, body: dict | None) -> ApiResponse:
-        if not isinstance(body, dict):
-            return self._bad_request("请求体必须是 JSON 对象")
-
-        value = body.get("value")
-        category = body.get("category")
-        from_unit = body.get("fromUnit")
-        to_unit = body.get("toUnit")
-        if not isinstance(value, str):
-            return self._bad_request("请求必须包含 value 字符串")
-        if not isinstance(category, str):
-            return self._bad_request("请求必须包含 category 字符串")
-        if not isinstance(from_unit, str):
-            return self._bad_request("请求必须包含 fromUnit 字符串")
-        if not isinstance(to_unit, str):
-            return self._bad_request("请求必须包含 toUnit 字符串")
-
-        try:
-            conversion = convert_unit(
-                value,
-                category,
-                from_unit,
-                to_unit,
-            )
-        except ConversionError as error:
-            return self._conversion_error(error)
-
-        record = self.database.create_history(
-            conversion.expression,
-            conversion.result,
-            kind="unit",
-        )
-        return self._created(record)
-
     def _list_history(self, query_string: str) -> ApiResponse:
         query_parameters = parse_qs(query_string)
         page = self._parse_positive_int(query_parameters, "page", default=1)
@@ -212,8 +149,6 @@ class ApiRouter:
             page=page,
             page_size=min(page_size, 50),
             query=query_parameters.get("q", [""])[0],
-            favorite_only=query_parameters.get("favorite", ["false"])[0]
-            == "true",
         )
         return ApiResponse(
             status=200,
@@ -232,55 +167,16 @@ class ApiRouter:
             },
         )
 
-    def _update_favorite(
-        self,
-        raw_record_id: str,
-        body: dict | None,
-    ) -> ApiResponse:
-        record_id = self._parse_record_id(raw_record_id)
-        if record_id is None:
-            return self._not_found()
-        if not isinstance(body, dict) or not isinstance(
-            body.get("favorite"),
-            bool,
-        ):
-            return self._bad_request("favorite 必须是布尔值")
-
-        record = self.database.set_favorite(record_id, body["favorite"])
-        if record is None:
-            return self._not_found()
-
-        return ApiResponse(
-            status=200,
-            body={
-                "success": True,
-                "data": serialize_history_item(record),
-            },
-        )
-
     def _delete_history(self, raw_record_id: str) -> ApiResponse:
         try:
             record_id = int(raw_record_id)
         except ValueError:
-            return ApiResponse(
-                status=404,
-                body={"success": False, "message": "历史记录不存在"},
-            )
+            return self._not_found()
 
         if not self.database.delete_history(record_id):
-            return ApiResponse(
-                status=404,
-                body={"success": False, "message": "历史记录不存在"},
-            )
+            return self._not_found()
 
         return ApiResponse(status=204, body=None)
-
-    @staticmethod
-    def _parse_record_id(raw_record_id: str) -> int | None:
-        try:
-            return int(raw_record_id)
-        except ValueError:
-            return None
 
     @staticmethod
     def _parse_positive_int(
@@ -310,6 +206,17 @@ class ApiRouter:
         return ApiResponse(
             status=400,
             body={"success": False, "message": message},
+        )
+
+    @staticmethod
+    def _calculation_error(error: CalculationError) -> ApiResponse:
+        return ApiResponse(
+            status=400,
+            body={
+                "success": False,
+                "code": error.code,
+                "message": error.message,
+            },
         )
 
     @staticmethod

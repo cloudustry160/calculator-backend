@@ -4,7 +4,7 @@
 
 This repository contains the backend API for a calculator system. The backend
 validates expressions, parses and evaluates mathematical input, handles errors,
-performs base and unit conversions, and persists calculation history in SQLite.
+performs number base conversion, and persists calculation history in SQLite.
 
 The front end communicates with this service only through HTTP JSON APIs.
 Arithmetic evaluation is never performed by the front end.
@@ -26,10 +26,9 @@ No third-party packages or virtual environment are required.
 - Unary plus and minus
 - Decimal arithmetic
 - Invalid expression and division-by-zero handling
-- Number base conversion from base 2 to base 36
-- Unit conversion for length, mass, temperature, and time
+- Number base conversion for bases 2, 8, 10, and 16
 - Persistent history in SQLite
-- History search, pagination, and favorites
+- History search and pagination
 - Delete a single history record
 - Health check endpoint
 
@@ -92,12 +91,11 @@ id
 expression
 result
 kind
-is_favorite
 created_at
 ```
 
-The initialization routine also upgrades older databases by adding `kind` and
-`is_favorite` when those columns are missing.
+The initialization routine also upgrades older databases by adding `kind`
+when that column is missing.
 
 The default database file is:
 
@@ -131,7 +129,6 @@ Successful response:
     "expression": "(1+2)*3",
     "result": 9,
     "kind": "calculation",
-    "isFavorite": false,
     "createdAt": "2026-10-03T10:00:00Z"
   }
 }
@@ -151,21 +148,6 @@ Request:
 
 The result `"255"` is stored in history with `kind: "base"`.
 
-### `POST /api/conversions/units`
-
-Request:
-
-```json
-{
-  "value": "100",
-  "category": "length",
-  "fromUnit": "cm",
-  "toUnit": "m"
-}
-```
-
-Supported categories are `length`, `mass`, `temperature`, and `time`.
-
 ### `GET /api/history`
 
 Query parameters:
@@ -174,18 +156,9 @@ Query parameters:
 page=1
 pageSize=10
 q=expression
-favorite=true
 ```
 
 The response contains `data` and `pagination`.
-
-### `PATCH /api/history/{id}/favorite`
-
-Request:
-
-```json
-{"favorite": true}
-```
 
 ### `DELETE /api/history/{id}`
 
